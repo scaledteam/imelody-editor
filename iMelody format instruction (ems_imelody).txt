@@ -1,0 +1,133 @@
+Specifications for EMS IMelody
+
+1. Overview
+The iMelody format is a minimal set of tones that can be used to transfer melodies between devices. The definition can
+be extended by defining new formats for MIDI/WAV, DTMF, polyphonic etc. The FORMAT field is mandatory, as it is
+used to specify the format of the following data.
+
+In all cases, a letter designating a note, style, volume, etc will precede a number.
+
+Example applications include ring tones, alarm tones and power-on melodies.
+
+
+2. BNF Definition
+<imelody-object>::=
+"BEGIN:IMELODY"<cr><line-feed>
+"VERSION:"<version><cr><line-feed>
+"FORMAT:"<format><cr><line-feed>
+["NAME:"<characters-not-lf><cr><line-feed>]
+["COMPOSER:"<characters-not-lf><cr><line-feed>]
+["BEAT:"<beat><cr><line-feed>]
+["STYLE:"<style><cr><line-feed>]
+["VOLUME:"<volume><cr><line-feed>]
+["COPYRIGHT:"<copyright><cr><line-feed>]
+"MELODY:"<melody><cr><line-feed>
+"END:IMELODY"<cr><line-feed>
+
+<version>::="1.2"
+<format>::"CLASS1.0" | " CLASS2.0"
+<beat>::="25" | "26" | "27" | ... | "899" | "900"
+<style>::="S0" | "S1" | "S2"
+<volume-modifier>::="V+"|"V-" (changes volume + or - from current volume)
+<volume>::="V0" | "V1" | ... | "V15" |<volume-modifier>
+<basic-note>::="c" | "d" | "e" | "f" | "g" | "a" | "b"
+<ess-note >::="&d" | "&e" | "&g" | "&a" | "&b" (flat notes)
+<iss-note >::="#c" | "#d" | "#f" | "#g" | "#a" (sharp notes)
+<basic-ess-iss- note >::=<basic-note> | <ess-note> | <iss-note>
+<octave-prefix>::="*0" | "*1" | ... | "*8" (A=55Hz) | (A=110Hz) | ... | (A=14080 Hz)
+<duration>::="0" | "1" | "2" | "3" | "4" | "5"
+<duration-specifier>::="." | ":" | ";"
+<rest>::="r"
+<led>::="ledoff" | "ledon"
+<vibe>::="vibeon" | "vibeoff"
+<backlight>::="backon" | "backoff"
+<note>::=[<octave-prefix>]<basic-ess-iss-note><duration>[<duration-specifier]
+<silence>::=<rest ><duration>[<duration-specifier]
+<repeat>::= "("{<silence>|<note>|<led>|<vib>|volume>|<backlight>}+ "@"<repeat-count>[<volume-modifier>]")"
+<repeat-count>::="0" | "1" | "2" | ... (0 is repeat forever)
+<melody>::={<silence>|<note>|<led>|<vib>|<repeat>|<volume>|<backlight>}+
+<characters-not-lf >::= ‘Any character in the ASCII character-set except <line-feed>.’
+<copyright>::="FREE" | "PROTECTED"
+
+Note : no <repeat> block within <repeat> block!(The repeat blocks cannot be nested in this simple CLASS1.0 definition)
+Default octave-prefix is *4. I,e, A=880Hz
+The volume can optionally be adjusted up, or down, within a repeat block, by including a V+/V- character anywhere
+within the repeat block. i.e (#d1r3d2e2@3V+).
+The volume changes within a repeat loop continue after the loop is exited.
+The default character set is UTF-8.
+The file extension is imy. For example "ringring.imy"
+The field name (text before the colon) is not case sensitive.
+The field value (text after the colon) is case sensitive.
+
+A maximum length for the melody has not been defined. For interoperability, the length should be kept as short as
+possible. Receiving devices must be able to truncate iMelody messages longer than the device's allocated receiving
+buffer.
+The beat is a decimal representation of the tempo in beats per minute. i.e. a bpm of 63 gives a length of a ј note as 0.95
+sec. The beat rate has been restricted to values between 25bpm and 900bpm, to place realistic requirements on the
+receiving device. A default value of 120 bpm should be used if a beat is not specified.
+Lines of text in the iMelody, SHOULD NOT be longer than 75 octets, excluding the line break. Long content lines
+SHOULD be split into a multiple line representations, using a line folding technique. That is, a long line can be split
+between any two characters, by inserting a CRLF immediately followed by a single linear white space character (i.e.,
+SPACE, US-ASCII decimal 32 or HTAB, US-ASCII decimal 9).
+
+Duration:
+Value   Duration
+-----   --------
+0       Full-note
+1       1/2-note
+2       1/4-note
+3       1/8-note
+4       1/16-note
+5       1/32-note
+
+Duration Specifier:
+Symbol  Duration
+------  --------
+        No special duration
+.       Dotted note
+:       Double dotted note
+;       2/3 length
+
+Style:
+Value   Style Ratio of note to rest period
+-----   ----------------------------------
+S0      Natural Style (rest between notes), default 20:1
+S1      Continuous Style (no rest between notes) No rest
+S2      Staccato Style (shorter notes and longer rest period) 1:1
+
+Volume:
+Value    Volume
+-----    ------
+V0       tone-off
+V1       level-1
+V2       level-2
+V3       level-3
+V4       level-4
+V5       level-5
+V6       level-6
+V7       level-7, default
+V8       level-8
+V9       level-9
+V10      level-10
+V11      level-11
+V12      level-12
+V13      level-13
+V14      level-14
+V15      level-15
+
+
+3. Example of a "CLASS1.0" iMelody object
+BEGIN:IMELODY
+VERSION:1.2
+FORMAT:CLASS1.0 
+NAME:Melody1
+BEAT:120
+STYLE:S1
+VOLUME:V7
+MELODY:V7&b2#c3V-c2*4g3d3V+#d1r3d2e2:d1V+f2f3.
+END:IMELODY
+
+Note that in the V1.0 of the iMelody specification, the example omitted the letter V in the VOLUME modifier and S in
+the STYLE. Implementations should be capable of receiving the volume with, and without the letter V.
+Implementations should transmit with the letter V. Similarly implementations should be capable of receiving the style
+with, and without the letter S, but always send with an S.
