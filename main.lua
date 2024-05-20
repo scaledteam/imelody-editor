@@ -4,6 +4,11 @@ lk = love.keyboard
 DURATION_REAL = false
 PIANO_WIDTH = 40
 PIANO_HEIGHT = 120
+NOTE_HEIGHT = 60
+
+notes_list = {}
+notesTimingCounter = 0
+notes_offset = 0
 
 function noteToTime(notes)
 	return notes * 4 * 60 / BPM
@@ -104,13 +109,19 @@ function charToNote(char)
 		return 5.5
 	elseif char == '#a' then
 		return 6.5
+	
+	-- error notes
+	elseif char == '#e' then
+		return 3
+	elseif char == '&f' then
+		return 4
 		
 	else
 		return -1
 	end
 end
 
-function noteToFrequency(nite, sharp, octave)
+function noteToFrequency(note, sharp, octave)
 	--return 16.35 * math.pow(2, (note7to12(note, sharp)-1) / 12 + (octave))
 	return 2 * 16.35 * math.pow(2, (note7to12(note, sharp)-1) / 12 + (octave))
 	--return 4 * 16.35 * math.pow(2, (note7to12(note, sharp)-1) / 12 + (octave))
@@ -252,6 +263,12 @@ function love.keypressed(key, scancode, isrepeat)
 			end
 			
 			timeLastNote = love.timer.getTime()
+			
+			local noteDuration = noteToTime(math.pow(2, -duration))
+			table.insert(notes_list, note > 0 and (note+mySharp*0.5)+octave*7 or -1)
+			table.insert(notes_list, noteDuration)
+			table.insert(notes_list, notesTimingCounter)
+			notesTimingCounter = notesTimingCounter + noteDuration
 		end
 	end
 	
@@ -264,17 +281,22 @@ function love.keypressed(key, scancode, isrepeat)
 		)
 		file:close()
 	
-	elseif key == 'backspace' then
+	elseif key == 'backspace' or key == 'delete' then
 		local success = false
 		for i=#notes-1, 1, -1 do
 			if notes:sub(i,i) == ' ' then
 				notes = notes:sub(1, i)
 				success = true
+				
+			    table.remove(notes_list, #notes_list)
+			    notesTimingCounter = notesTimingCounter - table.remove(notes_list, #notes_list)
+			    table.remove(notes_list, #notes_list)
 				break
 			end
 		end
 		if not success then
 			notes = ''
+			notes_list = {}
 		end
 	elseif key == 'down' then
 		duration = math.min(5, duration + 1)
@@ -379,6 +401,82 @@ function love.keypressed(key, scancode, isrepeat)
 		note = -1
 		sharp = ''
 	
+	elseif key == 'lshift' then
+		notes_list = {}
+		
+		notesTimingCounter = 0
+		
+		local i = 1
+		while i < #notes do
+			local success = true
+			
+			tryOctave = notes:sub(i,i)
+			--print('tryOctave: ' .. tryOctave)
+			if tryOctave == '*' then
+				i = i + 1
+				octave = tonumber(notes:sub(i,i))
+				i = i + 1
+			else
+				octave = 4
+			end
+			
+			trySingleNote = charToNote(notes:sub(i,i))
+			--print('trySingleNote: ' .. trySingleNote)
+			if trySingleNote ~= -1 then
+				note = trySingleNote
+				sharp = ''
+				i = i + 1
+			else
+				trySharpNote = charToNote(notes:sub(i,i+1))
+				--print('trySharpNote: ' .. trySharpNote)
+				if trySharpNote ~= -1 then
+					note = math.floor(trySharpNote)
+					sharp = '#'
+					i = i + 2
+				else
+					--error('Can\'t play note: ' .. notes:sub(i,i+1))
+					success = false
+				end
+			end
+			
+			if success then
+				--print('duration: ' .. notes:sub(i,i))
+				duration = tonumber(notes:sub(i,i))
+				i = i + 1
+				
+				--print('space: ' .. notes:sub(i,i))
+				if notes:sub(i,i) == ' ' then
+					i = i + 1
+				end
+				
+				local mySharp = 0
+				if sharp == '#' then
+					mySharp = 1
+				end
+				local noteDuration = noteToTime(math.pow(2, -duration))
+				
+				table.insert(notes_list, note > 0 and (note+mySharp*0.5)+octave*7 or -1)
+				table.insert(notes_list, noteDuration)
+				table.insert(notes_list, notesTimingCounter)
+				notesTimingCounter = notesTimingCounter + noteDuration
+			else
+				i = i + 1
+			end
+			
+		end
+		
+		note = -1
+		sharp = ''
+	
+	elseif key == 'escape' then
+		love.audio.stop()
+	
+	elseif key == 'pageup' then
+		notes_offset = notes_offset + height/2
+	
+	elseif key == 'pagedown' then
+		notes_offset = notes_offset - height/2
+	
 	elseif key == 'q' then
 		love.event.quit()
 	end
@@ -425,6 +523,17 @@ function love.keyreleased(key, scancode, isrepeat)
 end
 
 function love.draw()
+	lg.setColor(.6,.6,1)
+	for i = 1, #notes_list, 3 do
+	    if notes_list[i] ~= -1 then
+	        note_width = PIANO_WIDTH
+	        if notes_list[i] ~= math.floor(notes_list[i]) then
+	            note_width = note_width * 0.9
+	        end
+		    lg.rectangle("fill", PIANO_WIDTH*(notes_list[i]-octave*7), notes_offset + height - NOTE_HEIGHT*(notes_list[i+2]), note_width-5, -NOTE_HEIGHT*notes_list[i+1]+1)
+		end
+	end
+	
 	lg.setColor(0,0,0)
 	for i = 1, 7 do
 		lg.rectangle("line", PIANO_WIDTH*i, height - PIANO_HEIGHT, PIANO_WIDTH-5, PIANO_HEIGHT)

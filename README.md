@@ -20,15 +20,21 @@ Delay: "p", Short delay: "["
 
 Write .imy file: "Enter"
 
-Undo: "backspace"
+Undo: "Backspace"
 
-Change duration: "up and down arrow keys"
+Change duration: "Up and Down arrow keys"
 
-Change octave: "left and right arrow keys"
+Change octave: "Left and Right arrow keys"
 
 Play song: "Spacebar"
 
 Play last 10 notes: "0"
+
+Stop song: "Escape"
+
+Show notes: "Shift"
+
+Scroll notes: "Page Up and Page Down"
 
 Quit: "q"
 
